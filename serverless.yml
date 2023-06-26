@@ -1,0 +1,76 @@
+service: dynamo
+frameworkVersion: '3'
+
+plugins: 
+  - serverless-plugin-optimize
+  - serverless-offline
+  - serverless-dynamodb-local
+
+
+provider: 
+    name: aws
+    runtime: nodejs18.x
+    region: ${file(./config.json):deployment.region}
+    apiGateway:
+      shouldStartNameWithService: true
+
+    environment: 
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED: 1
+      NODE_OPTIONS: --enable-source-maps --stack-trace-limit=1000
+      DYNAMODB_ENDPOINT: ${file(./config.json):deployment.endpoint}
+    iam: 
+      role: 
+        statements: 
+            - Effect: 'Allow'
+              Action: 
+                - 'dynamodb:DescribeTable'
+                - 'dynamodb:Query'
+                - 'dynamodb:Scan'
+                - 'dynamodb:GetItem'
+                - 'dynamodb:PutItem'
+                - 'dynamodb:UpdateItem'
+                - 'dynamodb:DeleteItem'
+
+              Resource: arn:aws:dynamodb:us-west-2:*:table/Tsttab
+
+custom: 
+    esbuild: 
+      bundle: true
+      minify: false
+      sourcemap: true
+      exclude: aws-sdk
+      target: node14
+      define: 'require.resolve: undefined'
+      platform: node
+      concurrency: 10
+
+    dynamodb: 
+      start: 
+        port: 6000
+        inMemory: true
+        migrate: true
+      stages: dev
+    endpoints:
+      dynamodbURL: 'http://localhost:6000'
+
+resources: 
+    Resources: 
+      Tsttab: 
+        Type: AWS::DynamoDB::Table
+        Properties:
+          TableName: Tsttab
+          AttributeDefinitions: 
+              - AttributeName: id
+                AttributeType: S
+              - AttributeName: name
+                AttributeType: S
+
+          KeySchema: 
+              - AttributeName: id
+                KeyType: HASH
+              - AttributeName: name
+                KeyType: RANGE
+                
+          ProvisionedThroughput: 
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1            
